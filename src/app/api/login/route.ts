@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
 
   await asegurarEsquema();
   const { rows } = await pool.query(
-    'SELECT usuario, nombre, password_hash FROM dados_usuarios WHERE usuario = $1 AND activo',
+    'SELECT usuario, nombre, rol, password_hash FROM dados_usuarios WHERE usuario = $1 AND activo',
     [usuario]
   );
   const u = rows[0];
@@ -38,7 +38,11 @@ export async function POST(req: NextRequest) {
   }
 
   intentos.delete(ip);
-  const token = await firmarSesion({ usuario: u.usuario, nombre: u.nombre });
+  const token = await firmarSesion({
+    usuario: u.usuario,
+    nombre: u.nombre,
+    rol: u.rol === 'admin' ? 'admin' : 'vendedor',
+  });
   const res = NextResponse.json({ ok: true });
   res.cookies.set(COOKIE, token, opcionesCookie);
   return res;

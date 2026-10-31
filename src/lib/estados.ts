@@ -11,6 +11,9 @@ export const ETIQUETA: Record<string, string> = {
   cancelado: 'Cancelado',
 };
 
+// Los productos solo se pueden modificar mientras el pedido no fue cobrado.
+export const ESTADO_EDITABLE: EstadoFlujo = 'confirmado';
+
 export function esEstadoFlujo(e: unknown): e is EstadoFlujo {
   return typeof e === 'string' && (FLUJO as readonly string[]).includes(e);
 }

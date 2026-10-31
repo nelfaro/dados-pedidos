@@ -34,6 +34,18 @@ async function migrar() {
     );
     CREATE INDEX IF NOT EXISTS idx_pedido_historial_numero
       ON pedido_historial(numero_pedido);
+    CREATE INDEX IF NOT EXISTS idx_pedido_historial_fecha
+      ON pedido_historial(created_at);
+
+    -- Roles. Si todavia no hay ningun admin, el usuario mas antiguo pasa a serlo.
+    ALTER TABLE dados_usuarios ADD COLUMN IF NOT EXISTS rol text NOT NULL DEFAULT 'vendedor';
+    UPDATE dados_usuarios SET rol = 'admin'
+      WHERE id = (SELECT min(id) FROM dados_usuarios)
+        AND NOT EXISTS (SELECT 1 FROM dados_usuarios WHERE rol = 'admin');
+
+    -- Detalle de las modificaciones de productos, y nota visible para el agente.
+    ALTER TABLE pedido_historial ADD COLUMN IF NOT EXISTS detalle text;
+    ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS nota_staff text;
 
     -- Si pedidos tuviera un CHECK sobre estado, impediria pagado/listo/entregado.
     DO $$

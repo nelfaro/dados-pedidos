@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { asegurarEsquema, pool } from '@/lib/db';
-import { sesionActual } from '@/lib/auth';
+import { pool } from '@/lib/db';
+import { autorizar } from '@/lib/guard';
 import { transicionValida } from '@/lib/estados';
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ numero: string }> }) {
-  const sesion = await sesionActual();
-  if (!sesion) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  const a = await autorizar();
+  if ('error' in a) return a.error;
+  const sesion = a.sesion;
 
   const { numero } = await ctx.params;
   const body = await req.json().catch(() => ({}));
   const nuevo = String(body.estado || '');
 
-  await asegurarEsquema();
   const cli = await pool.connect();
   try {
     await cli.query('BEGIN');

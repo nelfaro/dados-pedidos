@@ -4,7 +4,8 @@ import { cookies } from 'next/headers';
 export const COOKIE = 'dados_session';
 const DURACION_SEG = 60 * 60 * 12;
 
-export type Sesion = { usuario: string; nombre: string };
+export type Rol = 'admin' | 'vendedor';
+export type Sesion = { usuario: string; nombre: string; rol: Rol };
 
 function clave() {
   const s = process.env.SESSION_SECRET;
@@ -24,7 +25,12 @@ export async function verificarToken(token: string | undefined): Promise<Sesion 
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, clave());
-    return { usuario: String(payload.usuario), nombre: String(payload.nombre) };
+    return {
+      usuario: String(payload.usuario),
+      nombre: String(payload.nombre),
+      // Sesiones anteriores a los roles no traen "rol": quedan como vendedor.
+      rol: payload.rol === 'admin' ? 'admin' : 'vendedor',
+    };
   } catch {
     return null;
   }

@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ETIQUETA, FLUJO } from '@/lib/estados';
+import { ESTADO_EDITABLE, ETIQUETA, FLUJO } from '@/lib/estados';
+import type { Item } from '@/lib/pedidos';
+import EditarPedido from './EditarPedido';
 
-type Item = { nombre: string; cantidad: number; precio_unit: number; total_linea: number };
 type Pedido = {
   numero_pedido: string;
   canal: string;
@@ -13,6 +14,7 @@ type Pedido = {
   total: number;
   cantidad_items: number;
   estado: string;
+  nota: string;
   fecha: string;
   actualizado: string;
 };
@@ -23,6 +25,7 @@ const SIGUIENTE: Record<string, { estado: string; texto: string }> = {
   listo: { estado: 'entregado', texto: 'Marcar entregado' },
 };
 const ANTERIOR: Record<string, string> = { pagado: 'confirmado', listo: 'pagado', entregado: 'listo' };
+const LINEAS_VISIBLES = 4;
 
 const peso = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 2 });
 
@@ -32,13 +35,13 @@ function enlaceContacto(p: Pedido) {
   return digitos ? `https://wa.me/${digitos}` : null;
 }
 
-export default function Tablero({ nombre }: { nombre: string }) {
+export default function Tablero() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
-  const [tab, setTab] = useState<string>('confirmado');
   const [q, setQ] = useState('');
   const [ocupado, setOcupado] = useState<string | null>(null);
+  const [editando, setEditando] = useState<Pedido | null>(null);
 
   const cargar = useCallback(async () => {
     try {
@@ -83,56 +86,27 @@ export default function Tablero({ nombre }: { nombre: string }) {
     }
   }
 
-  async function salir() {
-    await fetch('/api/logout', { method: 'POST' });
-    window.location.href = '/login';
-  }
-
-  const conteo = useMemo(() => {
-    const c: Record<string, number> = {};
-    for (const p of pedidos) c[p.estado] = (c[p.estado] || 0) + 1;
-    return c;
-  }, [pedidos]);
-
-  const visibles = useMemo(() => {
+  const columnas = useMemo(() => {
     const t = q.trim().toLowerCase();
-    return pedidos.filter((p) => {
-      const porTab =
-        tab === 'todos' ? true : tab === 'confirmado' ? p.estado === 'confirmado' || p.estado === 'modificando' : p.estado === tab;
-      if (!porTab) return false;
-      if (!t) return true;
-      return (
+    const visibles = pedidos.filter(
+      (p) =>
+        !t ||
         p.numero_pedido.toLowerCase().includes(t) ||
         p.cliente.toLowerCase().includes(t) ||
         p.contacto.toLowerCase().includes(t)
+    );
+    return FLUJO.map((estado) => {
+      // "Cliente editando" se muestra junto a Por cobrar: todavia no esta cobrado.
+      const lista = visibles.filter((p) =>
+        estado === 'confirmado' ? p.estado === 'confirmado' || p.estado === 'modificando' : p.estado === estado
       );
+      return { estado, lista, monto: lista.reduce((s, p) => s + p.total, 0) };
     });
-  }, [pedidos, tab, q]);
-
-  const tabs = [...FLUJO, 'todos'] as string[];
+  }, [pedidos, q]);
 
   return (
-    <>
-      <header className="top">
-        <h1>Pedidos · Dados</h1>
-        <span className="quien">{nombre}</span>
-        <button className="link" onClick={salir}>Salir</button>
-      </header>
-
-      <div className="wrap">
-        <div className="tabs" role="tablist">
-          {tabs.map((t) => (
-            <button key={t} className="tab" aria-pressed={tab === t} onClick={() => setTab(t)}>
-              {t === 'todos' ? 'Todos' : ETIQUETA[t]}
-              <span className="n">
-                {t === 'todos'
-                  ? pedidos.length
-                  : (conteo[t] || 0) + (t === 'confirmado' ? conteo['modificando'] || 0 : 0)}
-              </span>
-            </button>
-          ))}
-        </div>
-
+    <div className="wrap ancho">
+      <div className="barra">
         <input
           className="buscar"
           type="search"
@@ -140,73 +114,101 @@ export default function Tablero({ nombre }: { nombre: string }) {
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-
-        {error && <p className="error" role="alert">{error}</p>}
-
-        {cargando ? (
-          <p className="vacio">Cargando…</p>
-        ) : visibles.length === 0 ? (
-          <p className="vacio">No hay pedidos en esta vista.</p>
-        ) : (
-          <div className="grid">
-            {visibles.map((p) => {
-              const sig = SIGUIENTE[p.estado];
-              const ant = ANTERIOR[p.estado];
-              const link = enlaceContacto(p);
-              const bloqueado = ocupado === p.numero_pedido;
-              return (
-                <article className="card" key={p.numero_pedido}>
-                  <div className="cab">
-                    <span className="num">{p.numero_pedido}</span>
-                    <span className={`badge b-${p.estado}`}>{ETIQUETA[p.estado] || p.estado}</span>
-                  </div>
-                  <div className="cli">
-                    <div>
-                      <div>{p.cliente}</div>
-                      <div className="fecha">{p.fecha} · {p.canal === 'telegram' ? 'Telegram' : p.contacto}</div>
-                    </div>
-                    {link && <a href={link} target="_blank" rel="noreferrer">Abrir WhatsApp</a>}
-                  </div>
-                  <ul className="items">
-                    {p.items.map((it, i) => (
-                      <li key={i}>
-                        <span>{it.nombre}</span>
-                        <span className="q">{it.cantidad} × {peso.format(it.precio_unit)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="total">
-                    <span>{p.cantidad_items} productos</span>
-                    <span>{peso.format(p.total)}</span>
-                  </div>
-                  {p.estado === 'modificando' ? (
-                    <p className="aviso">El cliente está editando este pedido. Esperá a que lo confirme.</p>
-                  ) : (
-                    <div className="acciones">
-                      {ant && (
-                        <button
-                          className="btn sec"
-                          disabled={bloqueado}
-                          onClick={() => {
-                            if (confirm(`¿Volver ${p.numero_pedido} a "${ETIQUETA[ant]}"?`)) cambiar(p, ant);
-                          }}
-                        >
-                          Deshacer
-                        </button>
-                      )}
-                      {sig && (
-                        <button className="btn" disabled={bloqueado} onClick={() => cambiar(p, sig.estado)}>
-                          {sig.texto}
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-        )}
+        {error && <span className="error" role="alert">{error}</span>}
       </div>
-    </>
+
+      {cargando ? (
+        <p className="vacio">Cargando…</p>
+      ) : (
+        <div className="board">
+          {columnas.map((c) => (
+            <section className="col" key={c.estado} style={{ ['--col' as string]: `var(--c-${c.estado})` }}>
+              <header className="col-cab">
+                <h2>{ETIQUETA[c.estado]}</h2>
+                <span className="n">{c.lista.length}</span>
+                <span className="monto">{peso.format(c.monto)}</span>
+              </header>
+              <div className="lista">
+                {c.lista.length === 0 && <p className="vacio chico">Sin pedidos</p>}
+                {c.lista.map((p) => {
+                  const sig = SIGUIENTE[p.estado];
+                  const ant = ANTERIOR[p.estado];
+                  const link = enlaceContacto(p);
+                  const bloqueado = ocupado === p.numero_pedido;
+                  const resto = p.items.length - LINEAS_VISIBLES;
+                  return (
+                    <article className="card" key={p.numero_pedido}>
+                      <div className="cab">
+                        <span className="num">{p.numero_pedido}</span>
+                        <span className="fecha">{p.fecha}</span>
+                      </div>
+                      <div className="cli">
+                        <div>
+                          <div>{p.cliente}</div>
+                          <div className="fecha">{p.canal === 'telegram' ? 'Telegram' : p.contacto}</div>
+                        </div>
+                        {link && <a href={link} target="_blank" rel="noreferrer">WhatsApp</a>}
+                      </div>
+                      <ul className="items">
+                        {p.items.slice(0, LINEAS_VISIBLES).map((it, i) => (
+                          <li key={i}>
+                            <span>{it.nombre}</span>
+                            <span className="q">{it.cantidad} × {peso.format(it.precio_unit)}</span>
+                          </li>
+                        ))}
+                        {resto > 0 && <li className="mas">+ {resto} producto{resto > 1 ? 's' : ''} más</li>}
+                      </ul>
+                      {p.nota && <p className="nota">Modificado: {p.nota}</p>}
+                      <div className="total">
+                        <span>{p.cantidad_items} productos</span>
+                        <span>{peso.format(p.total)}</span>
+                      </div>
+                      {p.estado === 'modificando' ? (
+                        <p className="aviso">El cliente está editando este pedido. Esperá a que lo confirme.</p>
+                      ) : (
+                        <div className="acciones">
+                          {ant && (
+                            <button
+                              className="btn sec"
+                              disabled={bloqueado}
+                              onClick={() => {
+                                if (confirm(`¿Volver ${p.numero_pedido} a "${ETIQUETA[ant]}"?`)) cambiar(p, ant);
+                              }}
+                            >
+                              Deshacer
+                            </button>
+                          )}
+                          {p.estado === ESTADO_EDITABLE && (
+                            <button className="btn sec" disabled={bloqueado} onClick={() => setEditando(p)}>
+                              Editar
+                            </button>
+                          )}
+                          {sig && (
+                            <button className="btn" disabled={bloqueado} onClick={() => cambiar(p, sig.estado)}>
+                              {sig.texto}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
+
+      {editando && (
+        <EditarPedido
+          numero={editando.numero_pedido}
+          cliente={editando.cliente}
+          items={editando.items}
+          notaActual={editando.nota}
+          onCerrar={() => setEditando(null)}
+          onGuardado={cargar}
+        />
+      )}
+    </div>
   );
 }
