@@ -30,6 +30,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ numero: s
     }
     items.push({
       ...it,
+      idx: items.length + 1, // el bot numera las lineas de 1 a N
       nombre,
       cantidad,
       precio_unit: precio,
