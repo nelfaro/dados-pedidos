@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ESTADO_EDITABLE, ETIQUETA, FLUJO } from '@/lib/estados';
 import type { Item } from '@/lib/pedidos';
 import EditarPedido from './EditarPedido';
+import Icono from './Icono';
 
 type Pedido = {
   numero_pedido: string;
@@ -28,11 +29,15 @@ const ANTERIOR: Record<string, string> = { pagado: 'confirmado', listo: 'pagado'
 const LINEAS_VISIBLES = 4;
 
 const peso = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 2 });
+const pesoCorto = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 
 function enlaceContacto(p: Pedido) {
   if (p.canal !== 'whatsapp') return null;
   const digitos = p.contacto.replace(/\D/g, '');
   return digitos ? `https://wa.me/${digitos}` : null;
+}
+function iniciales(nombre: string) {
+  return nombre.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join('') || '?';
 }
 
 export default function Tablero() {
@@ -104,16 +109,30 @@ export default function Tablero() {
     });
   }, [pedidos, q]);
 
+  const porCobrar = columnas[0];
+
   return (
-    <div className="wrap ancho">
+    <>
       <div className="barra">
-        <input
-          className="buscar"
-          type="search"
-          placeholder="Buscar por número, cliente o teléfono"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
+        <div className="buscar-wrap">
+          <Icono n="buscar" size={16} />
+          <input
+            className="input"
+            type="search"
+            placeholder="Buscar por número, cliente o teléfono"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            aria-label="Buscar pedidos"
+          />
+        </div>
+        <div className="resumen-pipe">
+          <span className="tag tag-neutral">
+            <span className="punto-vivo" /> En vivo · cada 15 s
+          </span>
+          <span className="tag tag-estado" style={{ ['--tono' as string]: 'var(--c-confirmado)' }}>
+            {pesoCorto.format(porCobrar.monto)} por cobrar
+          </span>
+        </div>
         {error && <span className="error" role="alert">{error}</span>}
       </div>
 
@@ -124,10 +143,11 @@ export default function Tablero() {
           {columnas.map((c) => (
             <section className="col" key={c.estado} style={{ ['--col' as string]: `var(--c-${c.estado})` }}>
               <header className="col-cab">
+                <span className="col-punto" />
                 <h2>{ETIQUETA[c.estado]}</h2>
                 <span className="n">{c.lista.length}</span>
-                <span className="monto">{peso.format(c.monto)}</span>
               </header>
+              <div className="col-monto">{peso.format(c.monto)}</div>
               <div className="lista">
                 {c.lista.length === 0 && <p className="vacio chico">Sin pedidos</p>}
                 {c.lista.map((p) => {
@@ -137,15 +157,20 @@ export default function Tablero() {
                   const bloqueado = ocupado === p.numero_pedido;
                   const resto = p.items.length - LINEAS_VISIBLES;
                   return (
-                    <article className="card" key={p.numero_pedido}>
+                    <article
+                      className="card pcard"
+                      key={p.numero_pedido}
+                      style={{ ['--col' as string]: `var(--c-${p.estado === 'modificando' ? 'modificando' : c.estado})` }}
+                    >
                       <div className="cab">
                         <span className="num">{p.numero_pedido}</span>
-                        <span className="fecha">{p.fecha}</span>
+                        <span className="fecha mono">{p.fecha}</span>
                       </div>
                       <div className="cli">
-                        <div>
+                        <span className="avatar">{iniciales(p.cliente)}</span>
+                        <div className="cli-txt">
                           <div>{p.cliente}</div>
-                          <div className="fecha">{p.canal === 'telegram' ? 'Telegram' : p.contacto}</div>
+                          <div className="fecha mono">{p.canal === 'telegram' ? 'Telegram' : p.contacto}</div>
                         </div>
                         {link && <a href={link} target="_blank" rel="noreferrer">WhatsApp</a>}
                       </div>
@@ -160,8 +185,8 @@ export default function Tablero() {
                       </ul>
                       {p.nota && <p className="nota">Modificado: {p.nota}</p>}
                       <div className="total">
-                        <span>{p.cantidad_items} productos</span>
-                        <span>{peso.format(p.total)}</span>
+                        <span className="fecha">{p.cantidad_items} productos</span>
+                        <span className="mono">{peso.format(p.total)}</span>
                       </div>
                       {p.estado === 'modificando' ? (
                         <p className="aviso">El cliente está editando este pedido. Esperá a que lo confirme.</p>
@@ -169,22 +194,25 @@ export default function Tablero() {
                         <div className="acciones">
                           {ant && (
                             <button
-                              className="btn sec"
+                              className="btn btn-secondary btn-icon"
+                              style={{ width: 34, height: 34 }}
                               disabled={bloqueado}
+                              title={`Volver a ${ETIQUETA[ant]}`}
+                              aria-label={`Deshacer: volver a ${ETIQUETA[ant]}`}
                               onClick={() => {
                                 if (confirm(`¿Volver ${p.numero_pedido} a "${ETIQUETA[ant]}"?`)) cambiar(p, ant);
                               }}
                             >
-                              Deshacer
+                              <Icono n="deshacer" size={15} />
                             </button>
                           )}
                           {p.estado === ESTADO_EDITABLE && (
-                            <button className="btn sec" disabled={bloqueado} onClick={() => setEditando(p)}>
-                              Editar
+                            <button className="btn btn-secondary" disabled={bloqueado} onClick={() => setEditando(p)}>
+                              <Icono n="editar" size={14} /> Editar
                             </button>
                           )}
                           {sig && (
-                            <button className="btn" disabled={bloqueado} onClick={() => cambiar(p, sig.estado)}>
+                            <button className="btn btn-primary" disabled={bloqueado} onClick={() => cambiar(p, sig.estado)}>
                               {sig.texto}
                             </button>
                           )}
@@ -209,6 +237,6 @@ export default function Tablero() {
           onGuardado={cargar}
         />
       )}
-    </div>
+    </>
   );
 }

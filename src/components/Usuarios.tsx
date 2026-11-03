@@ -68,15 +68,14 @@ export default function Usuarios({ yo }: { yo: string }) {
   }
 
   return (
-    <div className="wrap">
-      <h2 className="titulo">Usuarios</h2>
+    <>
       <p className="fecha">
         <b>Admin</b>: todo, incluida la gestión de usuarios. <b>Vendedor</b>: pedidos, KPIs y reportes.
       </p>
       {error && <p className="error" role="alert">{error}</p>}
       {aviso && <p className="ok" role="status">{aviso}</p>}
 
-      <form className="panel form-linea" onSubmit={crear}>
+      <form className="card panel form-linea" onSubmit={crear}>
         <label className="campo">Usuario<input name="usuario" required autoCapitalize="none" autoComplete="off" /></label>
         <label className="campo">Nombre<input name="nombre" required autoComplete="off" /></label>
         <label className="campo">Contraseña<input name="password" type="password" minLength={8} required autoComplete="new-password" /></label>
@@ -87,10 +86,10 @@ export default function Usuarios({ yo }: { yo: string }) {
             <option value="admin">Admin</option>
           </select>
         </label>
-        <button className="btn" disabled={creando}>{creando ? 'Creando…' : 'Agregar usuario'}</button>
+        <button className="btn btn-primary" disabled={creando}>{creando ? 'Creando…' : 'Agregar usuario'}</button>
       </form>
 
-      <div className="tabla-wrap">
+      <div className="card tabla-wrap" style={{ padding: 8 }}>
         <table className="tabla">
           <thead>
             <tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Alta</th><th>Estado</th><th /></tr>
@@ -111,7 +110,7 @@ export default function Usuarios({ yo }: { yo: string }) {
                   </select>
                 </td>
                 <td>{u.alta}</td>
-                <td>{u.activo ? 'Activo' : 'Desactivado'}</td>
+                <td><span className={u.activo ? 'tag tag-ok' : 'tag tag-neutral'}>{u.activo ? 'Activo' : 'Desactivado'}</span></td>
                 <td className="derecha">
                   <button className="link" onClick={() => resetear(u)}>Cambiar clave</button>{' '}
                   <button
@@ -126,6 +125,6 @@ export default function Usuarios({ yo }: { yo: string }) {
           </tbody>
         </table>
       </div>
-    </div>
+    </>
   );
 }

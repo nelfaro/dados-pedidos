@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { sesionActual } from '@/lib/auth';
-import Header from '@/components/Header';
+import Shell from '@/components/Shell';
 import Usuarios from '@/components/Usuarios';
 
 export default async function PaginaUsuarios() {
@@ -8,9 +8,8 @@ export default async function PaginaUsuarios() {
   if (!s) redirect('/login');
   if (s.rol !== 'admin') redirect('/');
   return (
-    <>
-      <Header nombre={s.nombre} rol={s.rol} actual="/usuarios" />
+    <Shell nombre={s.nombre} rol={s.rol} actual="/usuarios" titulo="Usuarios" subtitulo="roles y accesos · solo administradores">
       <Usuarios yo={s.usuario} />
-    </>
+    </Shell>
   );
 }

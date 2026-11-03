@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ETIQUETA, FLUJO } from '@/lib/estados';
 import type { Item } from '@/lib/pedidos';
+import Icono from './Icono';
 
 type Fila = {
   numero_pedido: string;
@@ -63,10 +64,9 @@ export default function Reportes({ generadoPor }: { generadoPor: string }) {
   });
 
   return (
-    <div className="wrap">
+    <>
       <div className="no-print">
-        <h2 className="titulo">Reportes</h2>
-        <div className="panel form-linea">
+        <div className="panel form-linea" style={{ marginTop: 6 }}>
           <label className="campo">Desde<input type="date" value={desde} max={hasta} onChange={(e) => setDesde(e.target.value)} /></label>
           <label className="campo">Hasta<input type="date" value={hasta} min={desde} onChange={(e) => setHasta(e.target.value)} /></label>
           <label className="campo">
@@ -76,8 +76,8 @@ export default function Reportes({ generadoPor }: { generadoPor: string }) {
               {FLUJO.map((e) => <option key={e} value={e}>{ETIQUETA[e]}</option>)}
             </select>
           </label>
-          <button className="btn" onClick={() => window.print()} disabled={!r || r.pedidos.length === 0}>
-            Imprimir / Guardar PDF
+          <button className="btn btn-primary" onClick={() => window.print()} disabled={!r || r.pedidos.length === 0}>
+            <Icono n="imprimir" size={15} /> Imprimir / Guardar PDF
           </button>
         </div>
         <p className="fecha">En el diálogo de impresión elegí “Guardar como PDF” como destino.</p>
@@ -87,7 +87,7 @@ export default function Reportes({ generadoPor }: { generadoPor: string }) {
       {cargando && !r && <p className="vacio">Cargando…</p>}
 
       {r && (
-        <section className="reporte">
+        <section className="card reporte">
           <header className="reporte-cab">
             <h2>Reporte de pedidos · Dados</h2>
             <p>
@@ -108,7 +108,7 @@ export default function Reportes({ generadoPor }: { generadoPor: string }) {
           {r.pedidos.length === 0 ? (
             <p className="vacio">No hay pedidos en este período.</p>
           ) : (
-            <table className="tabla reporte-tabla">
+            <table className="tabla">
               <thead>
                 <tr>
                   <th>Pedido</th><th>Fecha</th><th>Cliente</th><th>Productos</th>
@@ -140,6 +140,6 @@ export default function Reportes({ generadoPor }: { generadoPor: string }) {
           )}
         </section>
       )}
-    </div>
+    </>
   );
 }

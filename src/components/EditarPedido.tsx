@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { Item } from '@/lib/pedidos';
+import Icono from './Icono';
 
 type Fila = { key: number; base: Item | null; nombre: string; cantidad: string; precio: string };
 
@@ -127,11 +128,13 @@ export default function EditarPedido({
                 onChange={(e) => cambiar(f.key, 'precio', e.target.value)}
               />
               <button type="button" className="quitar" onClick={() => quitar(f.key)} aria-label="Quitar producto">
-                ✕
+                <Icono n="cerrar" size={15} />
               </button>
             </div>
           ))}
-          <button type="button" className="btn sec" onClick={agregar}>+ Agregar producto</button>
+          <button type="button" className="btn btn-secondary" onClick={agregar} style={{ alignSelf: 'flex-start' }}>
+            <Icono n="mas" size={14} /> Agregar producto
+          </button>
         </div>
 
         <label className="campo">
@@ -147,12 +150,12 @@ export default function EditarPedido({
 
         <div className="total">
           <span>Nuevo total</span>
-          <span>{peso.format(total)}</span>
+          <span className="mono">{peso.format(total)}</span>
         </div>
         {error && <p className="error" role="alert">{error}</p>}
         <div className="acciones">
-          <button type="button" className="btn sec" onClick={onCerrar}>Cancelar</button>
-          <button className="btn" disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar cambios'}</button>
+          <button type="button" className="btn btn-secondary" onClick={onCerrar}>Cancelar</button>
+          <button className="btn btn-primary" disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar cambios'}</button>
         </div>
       </form>
     </div>

@@ -4,10 +4,13 @@ import { useEffect, useState } from 'react';
 import { ETIQUETA, FLUJO } from '@/lib/estados';
 
 type Punto = { dia: string; nuevos: number; pagado: number; listo: number; entregado: number };
+type Resumen = { creados: number; monto: number; cobrados: number; monto_cobrado: number };
 type Datos = {
   dias: number;
   pipeline: Record<string, { n: number; monto: number }>;
-  periodo: { creados: number; monto: number; cobrados: number; monto_cobrado: number; cancelados: number };
+  periodo: Resumen & { cancelados: number };
+  previo: Resumen;
+  topProductos: { nombre: string; cantidad: number; ingreso: number }[];
   serie: Punto[];
   tiempos: { a_cobro: number | null; a_listo: number | null; a_entrega: number | null };
   usuarios: { usuario: string; movimientos: number; ediciones: number }[];
@@ -31,6 +34,27 @@ function duracion(seg: number | null): string {
   return `${Math.floor(h / 24)} d ${h % 24} h`;
 }
 const corto = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
+
+// Variacion porcentual contra el periodo anterior. Sin base de comparacion no se muestra.
+function Variacion({ actual, previo }: { actual: number; previo: number }) {
+  if (!previo) return <span className="tag tag-neutral">sin período previo</span>;
+  const v = Math.round(((actual - previo) / previo) * 100);
+  return (
+    <span className={v >= 0 ? 'tag tag-ok' : 'tag tag-err'}>
+      {v >= 0 ? '▲' : '▼'} {Math.abs(v)}%
+    </span>
+  );
+}
+
+function Tile({ k, valor, delta, nota }: { k: string; valor: string; delta?: React.ReactNode; nota: string }) {
+  return (
+    <div className="card tile">
+      <span className="k">{k}</span>
+      <b>{valor}</b>
+      <div className="pie">{delta}<span>{nota}</span></div>
+    </div>
+  );
+}
 
 function Grafico({ serie }: { serie: Punto[] }) {
   const [hover, setHover] = useState<number | null>(null);
@@ -117,8 +141,8 @@ function Grafico({ serie }: { serie: Punto[] }) {
             <tbody>
               {serie.map((p) => (
                 <tr key={p.dia}>
-                  <td>{corto(p.dia)}</td>
-                  {SERIES.map((s) => <td key={s.clave} className="derecha">{p[s.clave]}</td>)}
+                  <td className="mono">{corto(p.dia)}</td>
+                  {SERIES.map((s) => <td key={s.clave} className="derecha mono">{p[s.clave]}</td>)}
                 </tr>
               ))}
             </tbody>
@@ -154,16 +178,21 @@ export default function Kpis() {
   }, [dias]);
 
   const p = d?.periodo;
+  const pv = d?.previo;
   const maxPipe = d ? Math.max(1, ...FLUJO.map((e) => d.pipeline[e]?.n ?? 0)) : 1;
+  const ticket = p && p.creados ? p.monto / p.creados : 0;
+  const ticketPrev = pv && pv.creados ? pv.monto / pv.creados : 0;
+  const tasa = p && p.creados ? (p.cobrados / p.creados) * 100 : 0;
+  const tasaPrev = pv && pv.creados ? (pv.cobrados / pv.creados) * 100 : 0;
+  const maxProd = d ? Math.max(1, ...d.topProductos.map((t) => t.ingreso)) : 1;
 
   return (
-    <div className="wrap">
+    <>
       <div className="barra">
-        <h2 className="titulo">KPIs</h2>
-        <div className="tabs">
+        <div className="seg" role="group" aria-label="Período">
           {[7, 30, 90].map((n) => (
-            <button key={n} className="tab" aria-pressed={dias === n} onClick={() => setDias(n)}>
-              Últimos {n} días
+            <button key={n} aria-pressed={dias === n} onClick={() => setDias(n)}>
+              {n} días
             </button>
           ))}
         </div>
@@ -171,25 +200,38 @@ export default function Kpis() {
       {error && <p className="error" role="alert">{error}</p>}
       {!d && !error && <p className="vacio">Cargando…</p>}
 
-      {d && p && (
+      {d && p && pv && (
         <>
           <div className="tiles">
-            <div className="tile"><span>Pedidos nuevos</span><b>{p.creados}</b><small>{p.cancelados} cancelados</small></div>
-            <div className="tile"><span>Cobrado</span><b>{peso.format(p.monto_cobrado)}</b><small>{p.cobrados} pedidos</small></div>
-            <div className="tile">
-              <span>Ticket promedio</span>
-              <b>{p.creados ? peso.format(p.monto / p.creados) : '—'}</b>
-              <small>sobre {peso.format(p.monto)}</small>
-            </div>
-            <div className="tile">
-              <span>Tasa de cobro</span>
-              <b>{p.creados ? `${Math.round((p.cobrados / p.creados) * 100)}%` : '—'}</b>
-              <small>{p.cobrados} de {p.creados}</small>
-            </div>
+            <Tile
+              k="Pedidos nuevos"
+              valor={String(p.creados)}
+              delta={<Variacion actual={p.creados} previo={pv.creados} />}
+              nota={`${p.cancelados} cancelados`}
+            />
+            <Tile
+              k="Cobrado"
+              valor={peso.format(p.monto_cobrado)}
+              delta={<Variacion actual={p.monto_cobrado} previo={pv.monto_cobrado} />}
+              nota={`${p.cobrados} pedidos`}
+            />
+            <Tile
+              k="Ticket promedio"
+              valor={p.creados ? peso.format(ticket) : '—'}
+              delta={<Variacion actual={ticket} previo={ticketPrev} />}
+              nota={`sobre ${peso.format(p.monto)}`}
+            />
+            <Tile
+              k="Tasa de cobro"
+              valor={p.creados ? `${Math.round(tasa)}%` : '—'}
+              delta={<Variacion actual={tasa} previo={tasaPrev} />}
+              nota={`${p.cobrados} de ${p.creados}`}
+            />
           </div>
 
           <section className="panel">
             <h3>Cómo se movieron los pedidos</h3>
+            <div className="sub-panel">pedidos nuevos y cambios de estado por día · últimos {d.dias} días</div>
             <Grafico serie={d.serie} />
           </section>
 
@@ -209,7 +251,9 @@ export default function Kpis() {
                 })}
               </div>
               {(d.pipeline.modificando?.n ?? 0) > 0 && (
-                <p className="fecha">{d.pipeline.modificando.n} con el cliente editando (aún sin confirmar).</p>
+                <p className="fecha" style={{ marginTop: 12 }}>
+                  {d.pipeline.modificando.n} con el cliente editando (aún sin confirmar).
+                </p>
               )}
             </section>
 
@@ -223,31 +267,50 @@ export default function Kpis() {
             </section>
           </div>
 
-          <section className="panel">
-            <h3>Actividad por persona</h3>
-            {d.usuarios.length === 0 ? (
-              <p className="fecha">Todavía no hay movimientos en este período.</p>
-            ) : (
-              <div className="tabla-wrap">
-                <table className="tabla">
-                  <thead>
-                    <tr><th>Usuario</th><th className="derecha">Cambios de estado</th><th className="derecha">Pedidos modificados</th></tr>
-                  </thead>
-                  <tbody>
-                    {d.usuarios.map((u) => (
-                      <tr key={u.usuario}>
-                        <td>{u.usuario}</td>
-                        <td className="derecha">{u.movimientos}</td>
-                        <td className="derecha">{u.ediciones}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
+          <div className="dos">
+            <section className="panel">
+              <h3>Productos más vendidos</h3>
+              {d.topProductos.length === 0 ? (
+                <p className="fecha">Todavía no hay pedidos en este período.</p>
+              ) : (
+                <div className="embudo">
+                  {d.topProductos.map((t) => (
+                    <div className="embudo-fila" style={{ gridTemplateColumns: 'minmax(0,1.2fr) minmax(0,1fr) 120px' }} key={t.nombre}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={t.nombre}>{t.nombre}</span>
+                      <div className="barra-fondo"><div className="barra-val" style={{ width: `${(t.ingreso / maxProd) * 100}%` }} /></div>
+                      <span className="q">{t.cantidad} u · {peso.format(t.ingreso)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section className="panel">
+              <h3>Actividad por persona</h3>
+              {d.usuarios.length === 0 ? (
+                <p className="fecha">Todavía no hay movimientos en este período.</p>
+              ) : (
+                <div className="tabla-wrap">
+                  <table className="tabla">
+                    <thead>
+                      <tr><th>Usuario</th><th className="derecha">Estados</th><th className="derecha">Ediciones</th></tr>
+                    </thead>
+                    <tbody>
+                      {d.usuarios.map((u) => (
+                        <tr key={u.usuario}>
+                          <td>{u.usuario}</td>
+                          <td className="derecha mono">{u.movimientos}</td>
+                          <td className="derecha mono">{u.ediciones}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </div>
         </>
       )}
-    </div>
+    </>
   );
 }
