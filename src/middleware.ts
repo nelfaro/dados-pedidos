@@ -17,7 +17,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/login', req.url));
   }
   // La verificacion real del rol (contra la base) la hace cada API; esto solo evita mostrar la pantalla.
-  if (pathname.startsWith('/usuarios') && sesion.rol !== 'admin') {
+  if ((pathname.startsWith('/usuarios') || pathname.startsWith('/configuracion')) && sesion.rol !== 'admin') {
     return NextResponse.redirect(new URL('/', req.url));
   }
   return NextResponse.next();

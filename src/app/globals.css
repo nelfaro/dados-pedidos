@@ -449,3 +449,18 @@ input::placeholder, textarea::placeholder { color: var(--color-neutral-500); }
   .tabla thead tr, .tabla tbody tr { background: none; border-bottom: 1px solid #ccc; }
   @page { margin: 12mm; }
 }
+
+/* ---------- Atencion humana y configuracion ---------- */
+.atencion { border-left: 3px solid var(--err); }
+.atencion h3 { display: flex; align-items: center; gap: 8px; }
+.atencion-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.atencion-item { display: grid; gap: 4px; font-size: 13.5px; padding-top: 12px; border-top: 1px solid var(--color-divider); }
+.atencion-item:first-child { padding-top: 0; border-top: 0; }
+.atencion-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.atencion-cab .btn { margin-left: auto; }
+.atencion-detalle { margin: 8px 0 0; padding: 10px 12px; white-space: pre-wrap; font: 12.5px/1.5 var(--mono); background: var(--hover); border-radius: var(--radius-sm); }
+.grilla-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.campo small { color: var(--muted); font-size: 11.5px; }
+.check { display: flex; align-items: center; gap: 8px; font-size: 13.5px; margin-bottom: 10px; }
+.horas { display: inline-flex; align-items: center; gap: 6px; }
+.horas input[type=time] { width: auto; min-width: 104px; }

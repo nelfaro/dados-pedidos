@@ -47,6 +47,39 @@ async function migrar() {
     ALTER TABLE pedido_historial ADD COLUMN IF NOT EXISTS detalle text;
     ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS nota_staff text;
 
+    -- Derivaciones a un vendedor humano (las crea el agente de n8n y las cierra la web).
+    CREATE TABLE IF NOT EXISTS atencion_humana (
+      id serial PRIMARY KEY,
+      session_id text NOT NULL,
+      canal text,
+      cliente_nombre text,
+      motivo text,
+      resumen text,
+      estado text NOT NULL DEFAULT 'pendiente',
+      created_at timestamptz DEFAULT NOW(),
+      resuelto_at timestamptz,
+      resuelto_por text,
+      detalle text
+    );
+    ALTER TABLE atencion_humana ADD COLUMN IF NOT EXISTS detalle text;
+    DO $
+    BEGIN
+      IF EXISTS (SELECT 1 FROM information_schema.columns
+                 WHERE table_name = 'atencion_humana' AND column_name = 'created_at'
+                   AND data_type = 'timestamp without time zone') THEN
+        ALTER TABLE atencion_humana ALTER COLUMN created_at TYPE timestamptz;
+      END IF;
+    END $;
+    CREATE INDEX IF NOT EXISTS idx_atencion_estado ON atencion_humana(estado, created_at);
+
+    -- Configuracion editable desde la web (una fila 'general'). La lee tambien n8n.
+    CREATE TABLE IF NOT EXISTS dados_config (
+      clave text PRIMARY KEY,
+      valor jsonb NOT NULL,
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      updated_by text
+    );
+
     -- Si pedidos tuviera un CHECK sobre estado, impediria pagado/listo/entregado.
     DO $$
     DECLARE c record;

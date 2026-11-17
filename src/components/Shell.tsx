@@ -35,7 +35,14 @@ export default function Shell({
     await fetch('/api/logout', { method: 'POST' });
     window.location.href = '/login';
   }
-  const links = rol === 'admin' ? [...LINKS, { href: '/usuarios', texto: 'Usuarios', icono: 'usuarios' as const }] : LINKS;
+  const links =
+    rol === 'admin'
+      ? [
+          ...LINKS,
+          { href: '/usuarios', texto: 'Usuarios', icono: 'usuarios' as const },
+          { href: '/configuracion', texto: 'Configuración', icono: 'ajustes' as const },
+        ]
+      : LINKS;
 
   return (
     <div className="app">
