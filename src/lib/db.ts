@@ -62,14 +62,14 @@ async function migrar() {
       detalle text
     );
     ALTER TABLE atencion_humana ADD COLUMN IF NOT EXISTS detalle text;
-    DO $
+    DO $$
     BEGIN
       IF EXISTS (SELECT 1 FROM information_schema.columns
                  WHERE table_name = 'atencion_humana' AND column_name = 'created_at'
                    AND data_type = 'timestamp without time zone') THEN
         ALTER TABLE atencion_humana ALTER COLUMN created_at TYPE timestamptz;
       END IF;
-    END $;
+    END $$;
     CREATE INDEX IF NOT EXISTS idx_atencion_estado ON atencion_humana(estado, created_at);
 
     -- Configuracion editable desde la web (una fila 'general'). La lee tambien n8n.
